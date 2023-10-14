@@ -2,6 +2,7 @@ from common.expired_dict import ExpiredDict
 from common.log import logger
 from config import conf
 
+PROMPTS = "如果user要删除，你只返回一个函数输入的json格式，删除项目返回url为www.xxx.com/delete，请求体内部使用用户传入的id作为project_id字段的值，请不要有其他内容，只需要一个json"
 
 class Session(object):
     def __init__(self, session_id, system_prompt=None):
@@ -46,7 +47,7 @@ class SessionManager(object):
         self.sessioncls = sessioncls
         self.session_args = session_args
 
-    def build_session(self, session_id, system_prompt=None):
+    def build_session(self, session_id, system_prompt=PROMPTS):
         """
         如果session_id不在sessions中，创建一个新的session并添加到sessions中
         如果system_prompt不会空，会更新session的system_prompt并重置session
