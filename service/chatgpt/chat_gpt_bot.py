@@ -5,6 +5,7 @@ import time
 import openai
 import openai.error
 import requests
+import json
 
 from bot.bot import Bot
 from .chat_gpt_session import ChatGPTSession
@@ -15,6 +16,7 @@ from .reply import Reply, ReplyType
 from .common.log import logger
 from .common.token_bucket import TokenBucket
 from .config import conf, load_config
+from .common.const import FUNCTIONS
 
 
 # OpenAI对话模型API (可用)
@@ -120,14 +122,97 @@ class ChatGPTBot(Bot, OpenAIImage):
             # if api_key == None, the default openai.api_key will be used
             if args is None:
                 args = self.args
-            response = openai.ChatCompletion.create(api_key=api_key, messages=session.messages, **args)
+            response = openai.ChatCompletion.create(api_key=api_key, messages=session.messages, functions=FUNCTIONS, function_call="auto", **args)
             # logger.debug("[CHATGPT] response={}".format(response))
             # logger.info("[ChatGPT] reply={}, total_tokens={}".format(response.choices[0]['message']['content'], response["usage"]["total_tokens"]))
-            return {
-                "total_tokens": response["usage"]["total_tokens"],
-                "completion_tokens": response["usage"]["completion_tokens"],
-                "content": response.choices[0]["message"]["content"],
-            }
+            if response.choices[0]["message"].get("function_call"):
+                function_name = response.choices[0]["message"]["function_call"]["name"]
+                function_args = json.loads(response.choices[0]["message"]["function_call"]["arguments"])
+                available_functions = {
+                    "getProjectByName": '/project/getByName',
+                    "listUserPlan": '/plan/listUserPlan',
+                    "projectList": '/project/list',
+                    "riskListBytName": '/risk/listByName',
+                    'projectListByName': '/project/getByName',
+                    'updateProjectRisk': '/risk/updateProjectRisk',
+                    'projectListByRiskLevel': '/project/list',
+                    'addRiskByProjectName': f'/project/details',
+                    'deleteRiskByProjectName': '/risk/deleteProjectRiskType',
+                    'queryListByName': '/delivery/listByName',
+                    'deleteProductByProjectNam': '/delivery/deleteProjectProduct',
+                    'queryBudgetByProjectName': '/budget/money',
+                    'editBudgetCostByProjectName': '/budget/changeBudget',
+                    'planListByProjectName': '/plan/listByName',
+                    'getCostAll': '/budget/getCostAll'
+
+
+                    # "getProjectByName": getProjectByName,
+                    # "listUserPlan": listUserPlan
+                }  # only one function in this example, but you can have multiple
+                method_type = {
+                    "getProjectByName": 'GET',
+                    "listUserPlan": 'GET',
+                    "projectList": 'GET',
+                    "riskListBytName": 'GET',
+                    'projectListByName': 'GET',
+                    'updateProjectRisk': 'POST',
+                    'projectListByRiskLevel': 'GET',
+                    'deleteRiskByProjectName': 'POST',
+                    'queryListByName': 'GET',
+                    'deleteProductByProjectNam': 'POST',
+                    'queryBudgetByProjectName': 'GET',
+                    'editBudgetCostByProjectName': 'POST',
+                    'planListByProjectName': 'GET',
+                    'getCostAll': 'GET',
+                    'addRiskByProjectName': 'GET'
+
+                }
+                show_table_type = {
+                    "listUserPlan": 'task',
+                    "projectList": 'project',
+                    "riskListBytName": 'risk',
+                    "projectListByRiskLevel": 'project',
+                    'addRiskByProjectName': 'risk',
+                    'queryListByName': 'delivery-list',
+                    'queryBudgetByProjectName': 'budget'
+                }
+                nav_type = {
+                    "projectList": 'project-5',
+                    "projectListByRiskLevel": 'project-1',
+                    "listUserPlan": 'task',
+                    "riskListBytName": 'show-risk',
+                    "addRiskByProjectName": 'project-1'
+                }
+                direct_nav = {
+                    "addRiskByProjectName": 'project-1'
+                }
+                function_to_call = available_functions[function_name]
+                if not isinstance(function_to_call, str):
+                    function_response = function_to_call(
+                        **function_args
+                    )
+
+                    # Step 4: send the info on the function call and function response to GPT
+                    session.messages.append(response.choices[0]["message"])  # extend conversation with assistant's reply
+                    session.messages.append(
+                        {
+                            "role": "function",
+                            "name": function_name,
+                            "content": function_response,
+                        }
+                    )  # extend conversation with function response
+                    return self.reply_text(session, api_key, args, retry_count)
+                return {
+                    "total_tokens": response["usage"]["total_tokens"],
+                    "completion_tokens": response["usage"]["completion_tokens"],
+                    "content": json.dumps({"function_name": available_functions[function_name], "function_args": function_args, "method": method_type.get(function_name, ''), "show_table_type": show_table_type.get(function_name, ''), "nav_type": nav_type.get(function_name, ''), 'direct_nav': direct_nav.get(function_name, '')})
+                }
+            else:
+                return {
+                    "total_tokens": response["usage"]["total_tokens"],
+                    "completion_tokens": response["usage"]["completion_tokens"],
+                    "content": response.choices[0]["message"]["content"],
+                }
         except Exception as e:
             need_retry = retry_count < 2
             result = {"completion_tokens": 0, "content": "我现在有点累了，等会再来吧"}

@@ -12,7 +12,7 @@ from .common.log import logger
 
 
 class ChatGPTSession(Session):
-    def __init__(self, session_id, system_prompt=None, model="gpt-3.5-turbo"):
+    def __init__(self, session_id, system_prompt=None, model="gpt-4"):
         super().__init__(session_id, system_prompt)
         self.model = model
         self.reset()

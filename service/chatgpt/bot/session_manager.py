@@ -2,7 +2,7 @@ from common.expired_dict import ExpiredDict
 from common.log import logger
 from config import conf
 
-PROMPTS = None
+PROMPTS = "项目名字如果包含了项目，不要去掉'项目'两个字"
 
 class Session(object):
     def __init__(self, session_id, system_prompt=None):

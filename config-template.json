@@ -1,6 +1,6 @@
 {
     "open_ai_api_key": "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",
-    "model": "gpt-3.5-turbo",
+    "model": "gpt-4",
     "channel_type": "wx",
     "proxy": "",
     "hot_reload": false,
