@@ -8,7 +8,7 @@ from model.Response.chatgpt_response import ChatgptResponse
 v1 = APIRouter()
 
 chat_gpt = ChatGPTBot()
-API_KEY = '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'
+API_KEY = None
 
 @v1.post('/gpt')
 async def chatgpt(data: ChatgptRequest):
